@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>One-to-One Timetable – MVP</title>
+  <style>
+    :root {
+      --bg: #0f172a; /* slate-900 */
+      --panel: #111827; /* gray-900 */
+      --muted: #334155; /* slate-600 */
+      --text: #e5e7eb; /* gray-200 */
+      --accent: #22d3ee; /* cyan-400 */
+      --danger: #fb7185; /* rose-400 */
+      --ok: #34d399; /* emerald-400 */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, #0b1220, #0f172a);
+      color: var(--text);
+    }
+    header { padding: 16px 20px; border-bottom: 1px solid #1f2937; position: sticky; top: 0; background: rgba(15,23,42,.8); backdrop-filter: blur(8px); }
+    h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: .2px; }
+    main { display: grid; grid-template-columns: 360px 1fr; gap: 16px; padding: 16px; }
+
+    .card { background: rgba(17,24,39,.8); border: 1px solid #1f2937; border-radius: 14px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .card h2 { margin: 0 0 10px; font-size: 16px; }
+    label { display: block; font-size: 12px; color: #94a3b8; margin: 10px 0 6px; }
+    input, select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #243244; background: #0b1020; color: var(--text); outline: none; }
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,.15); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid #1f2a3a;
+      cursor: pointer; user-select: none; background: linear-gradient(180deg, #0ea5b7, #0891a9);
+      color: #07131a; font-weight: 700; letter-spacing: .2px; margin-top: 12px;
+    }
+    .btn.secondary { background: #0b1020; color: var(--text); border-color: #243244; }
+    .muted { color: #94a3b8; font-size: 12px; }
+
+    /* Grid */
+    .grid-wrap { overflow: auto; }
+    .grid { display: grid; grid-template-columns: 80px repeat(5, 1fr); border: 1px solid #1f2937; border-radius: 14px; overflow: hidden; }
+    .col-head { padding: 10px; background: #0b1020; border-right: 1px solid #1f2937; font-size: 12px; text-align: center; color: #93c5fd; }
+    .col-head:first-child { text-align: right; padding-right: 12px; color: #94a3b8; }
+
+    .col { position: relative; height: 900px; /* 9 hours visual (08:00-17:00) */ background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); border-right: 1px solid #1f2937; }
+    .col:last-child { border-right: none; }
+    .hour-marker { position: absolute; left: 0; right: 0; height: 1px; background: rgba(148,163,184,.2); }
+    .hour-label { position: absolute; right: 8px; transform: translateY(-50%); font-size: 11px; color: #94a3b8; }
+
+    .slot { position: absolute; left: 6px; right: 6px; border-radius: 10px; padding: 8px; border: 1px solid rgba(255,255,255,.08);
+            background: linear-gradient(180deg, rgba(34,211,238,.15), rgba(34,211,238,.05));
+            box-shadow: 0 6px 18px rgba(0,0,0,.25);
+    }
+    .slot .title { font-weight: 700; font-size: 13px; }
+    .slot .meta { font-size: 11px; color: #cbd5e1; }
+    .slot .actions { margin-top: 6px; display: flex; gap: 6px; }
+    .pill { display: inline-block; font-size: 10px; padding: 3px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); color: #e2e8f0; }
+    .danger { color: var(--danger); }
+    .ok { color: var(--ok); }
+
+    .notice { margin-top: 8px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>One-to-One Timetable · MVP</h1>
+    <div class="muted">Week view · Hours 08:00–17:00 · Prevents person/room overlaps</div>
+  </header>
+  <main>
+    <section class="card" style="position: sticky; top: 72px; align-self: start;">
+      <h2>Add Session</h2>
+      <label>Person</label>
+      <input id="person" placeholder="e.g., Alice" />
+
+      <label>Room</label>
+      <input id="room" placeholder="e.g., Room 101" />
+
+      <div class="row">
+        <div>
+          <label>Day</label>
+          <select id="day">
+            <option value="1">Mon</option>
+            <option value="2">Tue</option>
+            <option value="3">Wed</option>
+            <option value="4">Thu</option>
+            <option value="5">Fri</option>
+            <option value="6">Sat</option>
+            <option value="7">Sun</option>
+          </select>
+        </div>
+        <div>
+          <label>Color (optional)</label>
+          <input id="color" type="color" value="#22d3ee" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Start</label>
+          <input id="start" type="time" value="09:00" />
+        </div>
+        <div>
+          <label>End</label>
+          <input id="end" type="time" value="10:00" />
+        </div>
+      </div>
+
+      <button class="btn" id="addBtn">Add session</button>
+      <button class="btn secondary" id="clearBtn" title="Clear all data">Clear all</button>
+      <div id="msg" class="notice"></div>
+      <p class="muted">Data is saved locally in your browser.</p>
+    </section>
+
+    <section class="card grid-wrap">
+      <div class="grid" id="grid">
+        <div class="col-head">Time</div>
+        <div class="col-head">Mon</div>
+        <div class="col-head">Tue</div>
+        <div class="col-head">Wed</div>
+        <div class="col-head">Thu</div>
+        <div class="col-head">Fri</div>
+
+        <!-- Time column -->
+        <div id="timeCol" style="position: relative; background:#0b1020;">
+        </div>
+
+        <!-- Day columns 1..5 -->
+        <div class="col" data-day="1"></div>
+        <div class="col" data-day="2"></div>
+        <div class="col" data-day="3"></div>
+        <div class="col" data-day="4"></div>
+        <div class="col" data-day="5"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---- Config ----
+    const START_HOUR = 8;  // 08:00
+    const END_HOUR = 17;   // 17:00
+    const DAY_NAMES = [null, 'Mon','Tue','Wed','Thu','Fri'];
+
+    // ---- State ----
+    let sessions = load(); // {id, person, room, day (1-5), start:"HH:MM", end:"HH:MM", color}
+
+    // ---- Utils ----
+    function minutesSinceStart(t) {
+      const [h,m] = t.split(':').map(Number);
+      return (h*60 + m) - (START_HOUR*60);
+    }
+    function durationMinutes(a,b){ return minutesSinceStart(b) - minutesSinceStart(a); }
+    function overlaps(a,b) {
+      // same day, and time ranges intersect
+      if (a.day !== b.day) return false;
+      const aStart = minutesSinceStart(a.start);
+      const aEnd   = minutesSinceStart(a.end);
+      const bStart = minutesSinceStart(b.start);
+      const bEnd   = minutesSinceStart(b.end);
+      return aStart < bEnd && bStart < aEnd; // strict overlap
+    }
+    function load(){
+      try { return JSON.parse(localStorage.getItem('tt_sessions')||'[]'); } catch { return []; }
+    }
+    function save(){ localStorage.setItem('tt_sessions', JSON.stringify(sessions)); }
+
+    // ---- Rendering ----
+    function renderTimeColumn(){
+      const col = document.getElementById('timeCol');
+      col.innerHTML = '';
+      col.style.height = (END_HOUR-START_HOUR)*100 + 'px';
+      for(let h=START_HOUR; h<=END_HOUR; h++){
+        const y = (h-START_HOUR)*100;
+        const hr = document.createElement('div'); hr.className='hour-marker'; hr.style.top = y+'px'; col.appendChild(hr);
+        const label = document.createElement('div'); label.className='hour-label'; label.style.top = y+'px'; label.textContent = String(h).padStart(2,'0')+':00'; col.appendChild(label);
+      }
+    }
+
+    function renderGrid(){
+      // clear day cols
+      document.querySelectorAll('.col[data-day]').forEach(col=>{ col.innerHTML='';
+        // hour markers per day
+        for(let h=START_HOUR; h<=END_HOUR; h++){
+          const y = (h-START_HOUR)*100;
+          const hr = document.createElement('div'); hr.className='hour-marker'; hr.style.top = y+'px'; col.appendChild(hr);
+        }
+      });
+
+      sessions.sort((a,b)=> a.day-b.day || a.start.localeCompare(b.start));
+      for(const s of sessions){ addSlotToGrid(s); }
+    }
+
+    function addSlotToGrid(s){
+      const col = document.querySelector(`.col[data-day="${s.day}"]`);
+      if(!col) return;
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      const top = minutesSinceStart(s.start);
+      const mins = durationMinutes(s.start, s.end);
+      slot.style.top = (top) + 'px';
+      slot.style.height = Math.max(26, mins) + 'px';
+      slot.style.background = `linear-gradient(180deg, ${hexToRgba(s.color||'#22d3ee', .25)}, ${hexToRgba(s.color||'#22d3ee', .08)})`;
+      slot.style.borderColor = hexToRgba(s.color||'#22d3ee', .35);
+
+      const title = document.createElement('div'); title.className='title'; title.textContent = `${s.person} • ${s.room}`; slot.appendChild(title);
+      const meta = document.createElement('div'); meta.className='meta'; meta.textContent = `${s.start} – ${s.end}`; slot.appendChild(meta);
+
+      const actions = document.createElement('div'); actions.className='actions';
+      const del = document.createElement('button'); del.className='btn secondary'; del.style.padding='4px 8px'; del.style.fontSize='11px'; del.textContent='Delete';
+      del.onclick = ()=>{ sessions = sessions.filter(x=>x.id!==s.id); save(); renderGrid(); message('Session deleted', 'ok'); };
+      actions.appendChild(del);
+      slot.appendChild(actions);
+
+      // conflict badge (visual)
+      const conflict = findConflicts(s);
+      if(conflict.length){
+        const badge = document.createElement('span'); badge.className='pill danger'; badge.textContent='Conflict'; slot.appendChild(badge);
+        slot.title = conflict.join('\n');
+      } else {
+        const badge = document.createElement('span'); badge.className='pill ok'; badge.textContent='Clear'; slot.appendChild(badge);
+      }
+      col.appendChild(slot);
+    }
+
+    function hexToRgba(hex, a){
+      const n = hex.replace('#','');
+      const bigint = parseInt(n, 16);
+      const r = (n.length===3) ? (bigint>>8 & 0xF) *17 : (bigint>>16)&255;
+      const g = (n.length===3) ? (bigint>>4 & 0xF) *17 : (bigint>>8)&255;
+      const b = (n.length===3) ? (bigint & 0xF) *17 : bigint & 255;
+      return `rgba(${r},${g},${b},${a})`;
+    }
+
+    // ---- Validation ----
+    function findConflicts(newS){
+      const conflicts = [];
+      for(const s of sessions){
+        if(s.id===newS.id) continue;
+        if(overlaps(s, newS)){
+          if(s.person===newS.person) conflicts.push(`Person overlap with ${s.person} (${DAY_NAMES[s.day]} ${s.start}-${s.end})`);
+          if(s.room===newS.room) conflicts.push(`Room overlap in ${s.room} (${DAY_NAMES[s.day]} ${s.start}-${s.end})`);
+        }
+      }
+      return conflicts;
+    }
+
+    function addSession(){
+      const person = document.getElementById('person').value.trim();
+      const room = document.getElementById('room').value.trim();
+      const day = parseInt(document.getElementById('day').value, 10);
+      const start = document.getElementById('start').value;
+      const end = document.getElementById('end').value;
+      const color = document.getElementById('color').value || '#22d3ee';
+
+      if(!person || !room || !start || !end) return message('Please fill all fields', 'danger');
+      if(end <= start) return message('End time must be after start time', 'danger');
+
+      const session = { id: crypto.randomUUID(), person, room, day, start, end, color };
+      const conflicts = findConflicts(session);
+      if(conflicts.length){
+        message('Conflict detected:\n' + conflicts.join('\n'), 'danger');
+        // still allow adding, but you can block it by returning here
+        // return;
+      } else {
+        message('Session added', 'ok');
+      }
+
+      sessions.push(session);
+      save();
+      renderGrid();
+      clearForm();
+    }
+
+    function clearForm(){
+      document.getElementById('person').value='';
+      document.getElementById('room').value='';
+      document.getElementById('start').value='09:00';
+      document.getElementById('end').value='10:00';
+      document.getElementById('color').value='#22d3ee';
+      document.getElementById('person').focus();
+    }
+
+    function message(text, type='ok'){
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.style.color = type==='danger' ? 'var(--danger)' : 'var(--ok)';
+      setTimeout(()=>{ el.textContent=''; }, 2200);
+    }
+
+    // ---- Init ----
+    renderTimeColumn();
+    renderGrid();
+    document.getElementById('addBtn').onclick = addSession;
+    document.getElementById('clearBtn').onclick = ()=>{ if(confirm('Clear all sessions?')){ sessions=[]; save(); renderGrid(); message('All cleared','ok'); }}
+  </script>
+</body>
+</html>
+
